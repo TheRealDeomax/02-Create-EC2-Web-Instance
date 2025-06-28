@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and customize the values
+
+# AWS region where resources will be created
+aws_region = "us-east-1"
+
+# EC2 instance type for web servers
+instance_type = "t2.micro"
+
+# Name of existing AWS key pair for SSH access to EC2 instances
+# Create a key pair in AWS console first, then specify its name here
+# key_pair_name = "my-key-pair"
