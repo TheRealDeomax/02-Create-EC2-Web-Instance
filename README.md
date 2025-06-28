@@ -195,7 +195,6 @@ terraform state list
 ## Next Steps
 
 Consider adding:
-- Application Load Balancer
 - Auto Scaling Groups
 - RDS database in private subnets
 - CloudWatch monitoring
