@@ -29,3 +29,5 @@ override.tf.json
 .terraformrc
 terraform.rc
 my-keypair.ppk
+my-keypair
+my-keypair.pub

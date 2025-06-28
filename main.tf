@@ -106,6 +106,13 @@ resource "aws_instance" "web_server_1" {
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
+  # Configure metadata service
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"  # Enforce IMDSv2
+    http_put_response_hop_limit = 1
+  }
+
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
@@ -114,14 +121,38 @@ resource "aws_instance" "web_server_1" {
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
-              sleep 30  # Wait for services to start             
-              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-              INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
-              AVAILABILITY_ZONE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
-              echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /index.html
-              echo "<p>Instance ID: $INSTANCE_ID</p>" >> /index.html
-              echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /index.html
-              mv ./index.html /var/www/html/index.html
+              sleep 30  # Wait for services to start
+              
+              # Get IMDSv2 token with retries
+              for i in {1..5}; do
+                TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
+                  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" \
+                  --connect-timeout 5 --max-time 10 -s)
+                if [ ! -z "$TOKEN" ]; then
+                  break
+                fi
+                echo "Retry $i: Failed to get token, waiting..."
+                sleep 5
+              done
+              
+              # Get metadata with token
+              if [ ! -z "$TOKEN" ]; then
+                INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+                  http://169.254.169.254/latest/meta-data/instance-id \
+                  --connect-timeout 5 --max-time 10 -s)
+                AVAILABILITY_ZONE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+                  http://169.254.169.254/latest/meta-data/placement/availability-zone \
+                  --connect-timeout 5 --max-time 10 -s)
+              else
+                INSTANCE_ID="Token acquisition failed"
+                AVAILABILITY_ZONE="Token acquisition failed"
+              fi
+              
+              echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /tmp/index.html
+              echo "<p>Instance ID: $INSTANCE_ID</p>" >> /tmp/index.html
+              echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /tmp/index.html
+              echo "<p>Token: $${TOKEN:0:10}...</p>" >> /tmp/index.html
+              mv /tmp/index.html /var/www/html/index.html
               EOF
   )
 
@@ -140,6 +171,13 @@ resource "aws_instance" "web_server_2" {
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
+  # Configure metadata service
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"  # Enforce IMDSv2
+    http_put_response_hop_limit = 1
+  }
+
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
@@ -148,16 +186,38 @@ resource "aws_instance" "web_server_2" {
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
+              sleep 30  # Wait for services to start
               
-              # Wait for metadata service to be available
-              while ! curl -s http://169.254.169.254/latest/meta-data/ > /dev/null; do
-                echo "Waiting for metadata service..."
-                sleep 2
+              # Get IMDSv2 token with retries
+              for i in {1..5}; do
+                TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" \
+                  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" \
+                  --connect-timeout 5 --max-time 10 -s)
+                if [ ! -z "$TOKEN" ]; then
+                  break
+                fi
+                echo "Retry $i: Failed to get token, waiting..."
+                sleep 5
               done
-
-              echo "<h1>Web Server 2 - Private Subnet 2</h1>" > /var/www/html/index.html
-              echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
-              echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
+              
+              # Get metadata with token
+              if [ ! -z "$TOKEN" ]; then
+                INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+                  http://169.254.169.254/latest/meta-data/instance-id \
+                  --connect-timeout 5 --max-time 10 -s)
+                AVAILABILITY_ZONE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" \
+                  http://169.254.169.254/latest/meta-data/placement/availability-zone \
+                  --connect-timeout 5 --max-time 10 -s)
+              else
+                INSTANCE_ID="Token acquisition failed"
+                AVAILABILITY_ZONE="Token acquisition failed"
+              fi
+              
+              echo "<h1>Web Server 2 - Private Subnet 2</h1>" > /tmp/index.html
+              echo "<p>Instance ID: $INSTANCE_ID</p>" >> /tmp/index.html
+              echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /tmp/index.html
+              echo "<p>Token: $${TOKEN:0:10}...</p>" >> /tmp/index.html
+              mv /tmp/index.html /var/www/html/index.html
               EOF
   )
 
