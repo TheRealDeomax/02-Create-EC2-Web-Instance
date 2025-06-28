@@ -81,3 +81,14 @@ output "alb_arn" {
   description = "ALB ARN"
   value       = aws_lb.main.arn
 }
+
+# CloudWatch Outputs
+output "cloudwatch_log_groups" {
+  description = "CloudWatch log groups created"
+  value = {
+    webserver1_access = aws_cloudwatch_log_group.webserver1_access_logs.name
+    webserver1_error  = aws_cloudwatch_log_group.webserver1_error_logs.name
+    webserver2_access = aws_cloudwatch_log_group.webserver2_access_logs.name
+    webserver2_error  = aws_cloudwatch_log_group.webserver2_error_logs.name
+  }
+}

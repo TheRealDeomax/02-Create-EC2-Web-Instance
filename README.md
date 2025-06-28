@@ -197,5 +197,34 @@ terraform state list
 Consider adding:
 - Auto Scaling Groups
 - RDS database in private subnets
-- CloudWatch monitoring
-- AWS Systems Manager for instance management
+- ✅ **CloudWatch monitoring** (Already implemented!)
+- ✅ **AWS Systems Manager for instance management** (Already implemented!)
+
+## CloudWatch Monitoring
+
+This project includes comprehensive CloudWatch monitoring:
+
+### Metrics Collected
+- **CPU metrics**: Usage, idle time, I/O wait
+- **Memory metrics**: Memory utilization percentage
+- **Disk metrics**: Disk utilization and I/O operations
+- **Network metrics**: TCP connections and network statistics
+
+### Log Collection
+- **Apache access logs**: `/var/log/httpd/access_log`
+- **Apache error logs**: `/var/log/httpd/error_log`
+- **Custom namespace**: `WebServer/EC2` for easy filtering
+
+### CloudWatch Resources Created
+- Log groups with 7-day retention for cost optimization
+- Separate log groups for each web server
+- CloudWatch agent automatically configured on both instances
+
+### Viewing Metrics and Logs
+1. Go to AWS CloudWatch console
+2. **Metrics**: Navigate to "WebServer/EC2" namespace
+3. **Logs**: Check log groups starting with `/aws/ec2/webserver`
+
+### Cost Impact
+- CloudWatch logs: ~$0.50/GB ingested + $0.03/GB stored
+- CloudWatch metrics: Free for basic metrics, custom metrics ~$0.30/metric/month

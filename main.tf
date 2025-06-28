@@ -48,10 +48,53 @@ resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+# Attach CloudWatch agent policy
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent_server_policy" {
+  role       = aws_iam_role.ec2_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 # Create instance profile
 resource "aws_iam_instance_profile" "ec2_ssm_profile" {
   name = "EC2-SSM-Profile"
   role = aws_iam_role.ec2_ssm_role.name
+}
+
+# CloudWatch Log Groups
+resource "aws_cloudwatch_log_group" "webserver1_access_logs" {
+  name              = "/aws/ec2/webserver1/httpd/access"
+  retention_in_days = 7
+
+  tags = {
+    Name = "WebServer1-Access-Logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "webserver1_error_logs" {
+  name              = "/aws/ec2/webserver1/httpd/error"
+  retention_in_days = 7
+
+  tags = {
+    Name = "WebServer1-Error-Logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "webserver2_access_logs" {
+  name              = "/aws/ec2/webserver2/httpd/access"
+  retention_in_days = 7
+
+  tags = {
+    Name = "WebServer2-Access-Logs"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "webserver2_error_logs" {
+  name              = "/aws/ec2/webserver2/httpd/error"
+  retention_in_days = 7
+
+  tags = {
+    Name = "WebServer2-Error-Logs"
+  }
 }
 
 # Security group for web servers
@@ -116,12 +159,95 @@ resource "aws_instance" "web_server_1" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
-              yum install -y httpd amazon-ssm-agent
+              yum install -y httpd amazon-ssm-agent amazon-cloudwatch-agent
               systemctl start httpd
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
               sleep 30  # Wait for services to start
+              
+              # Configure CloudWatch agent
+              cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWCONFIG'
+{
+  "metrics": {
+    "namespace": "WebServer/EC2",
+    "metrics_collected": {
+      "cpu": {
+        "measurement": [
+          "cpu_usage_idle",
+          "cpu_usage_iowait",
+          "cpu_usage_user",
+          "cpu_usage_system"
+        ],
+        "metrics_collection_interval": 60,
+        "totalcpu": false
+      },
+      "disk": {
+        "measurement": [
+          "used_percent"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      },
+      "diskio": {
+        "measurement": [
+          "io_time"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      },
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "netstat": {
+        "measurement": [
+          "tcp_established",
+          "tcp_time_wait"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "swap": {
+        "measurement": [
+          "swap_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/httpd/access_log",
+            "log_group_name": "/aws/ec2/webserver1/httpd/access",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/httpd/error_log",
+            "log_group_name": "/aws/ec2/webserver1/httpd/error",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+}
+CWCONFIG
+
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+                -a fetch-config -m ec2 -s \
+                -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
               
               # Get IMDSv2 token with retries
               for i in {1..5}; do
@@ -151,6 +277,7 @@ resource "aws_instance" "web_server_1" {
               echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /tmp/index.html
               echo "<p>Instance ID: $INSTANCE_ID</p>" >> /tmp/index.html
               echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /tmp/index.html
+              echo "<p>CloudWatch Agent: Enabled</p>" >> /tmp/index.html
               echo "<p>Token: $${TOKEN:0:10}...</p>" >> /tmp/index.html
               mv /tmp/index.html /var/www/html/index.html
               EOF
@@ -181,12 +308,95 @@ resource "aws_instance" "web_server_2" {
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
-              yum install -y httpd amazon-ssm-agent
+              yum install -y httpd amazon-ssm-agent amazon-cloudwatch-agent
               systemctl start httpd
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
               sleep 30  # Wait for services to start
+              
+              # Configure CloudWatch agent
+              cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWCONFIG'
+{
+  "metrics": {
+    "namespace": "WebServer/EC2",
+    "metrics_collected": {
+      "cpu": {
+        "measurement": [
+          "cpu_usage_idle",
+          "cpu_usage_iowait",
+          "cpu_usage_user",
+          "cpu_usage_system"
+        ],
+        "metrics_collection_interval": 60,
+        "totalcpu": false
+      },
+      "disk": {
+        "measurement": [
+          "used_percent"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      },
+      "diskio": {
+        "measurement": [
+          "io_time"
+        ],
+        "metrics_collection_interval": 60,
+        "resources": [
+          "*"
+        ]
+      },
+      "mem": {
+        "measurement": [
+          "mem_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "netstat": {
+        "measurement": [
+          "tcp_established",
+          "tcp_time_wait"
+        ],
+        "metrics_collection_interval": 60
+      },
+      "swap": {
+        "measurement": [
+          "swap_used_percent"
+        ],
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/httpd/access_log",
+            "log_group_name": "/aws/ec2/webserver2/httpd/access",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          },
+          {
+            "file_path": "/var/log/httpd/error_log",
+            "log_group_name": "/aws/ec2/webserver2/httpd/error",
+            "log_stream_name": "{instance_id}",
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+}
+CWCONFIG
+
+              # Start CloudWatch agent
+              /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+                -a fetch-config -m ec2 -s \
+                -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
               
               # Get IMDSv2 token with retries
               for i in {1..5}; do
@@ -216,6 +426,7 @@ resource "aws_instance" "web_server_2" {
               echo "<h1>Web Server 2 - Private Subnet 2</h1>" > /tmp/index.html
               echo "<p>Instance ID: $INSTANCE_ID</p>" >> /tmp/index.html
               echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /tmp/index.html
+              echo "<p>CloudWatch Agent: Enabled</p>" >> /tmp/index.html
               echo "<p>Token: $${TOKEN:0:10}...</p>" >> /tmp/index.html
               mv /tmp/index.html /var/www/html/index.html
               EOF
