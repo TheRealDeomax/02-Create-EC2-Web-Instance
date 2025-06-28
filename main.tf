@@ -62,20 +62,9 @@ resource "aws_security_group" "web_sg" {
   }
 }
 
-# Get the latest Amazon Linux 2 AMI
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-}
-
 # EC2 instance in private subnet 1
 resource "aws_instance" "web_server_1" {
-  ami           = data.aws_ami.amazon_linux.id
+  ami           = var.ami_id
   instance_type = var.instance_type
   key_name      = var.key_pair_name
   subnet_id     = aws_subnet.private_1.id
@@ -101,7 +90,7 @@ resource "aws_instance" "web_server_1" {
 
 # EC2 instance in private subnet 2
 resource "aws_instance" "web_server_2" {
-  ami           = data.aws_ami.amazon_linux.id
+  ami           = var.ami_id
   instance_type = var.instance_type
   key_name      = var.key_pair_name
   subnet_id     = aws_subnet.private_2.id

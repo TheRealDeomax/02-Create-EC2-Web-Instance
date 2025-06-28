@@ -15,6 +15,13 @@ variable "key_pair_name" {
   type        = string
   default     = "my-keypair"
 }
+
+variable "ami_id" {
+  description = "AMI ID for EC2 instances"
+  type        = string
+  default     = "ami-02457590d33d576c3"
+}
+
 variable "AWS_ACCESS_KEY_ID" {
   description = "AWS access key"
 }
