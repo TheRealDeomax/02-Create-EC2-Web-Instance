@@ -20,6 +20,40 @@ resource "aws_key_pair" "my_keypair" {
   public_key = file("./my-keypair.pub")
 }
 
+# IAM role for EC2 instances to use SSM
+resource "aws_iam_role" "ec2_ssm_role" {
+  name = "EC2-SSM-Role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "EC2-SSM-Role"
+  }
+}
+
+# Attach AWS managed policy for SSM
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
+  role       = aws_iam_role.ec2_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# Create instance profile
+resource "aws_iam_instance_profile" "ec2_ssm_profile" {
+  name = "EC2-SSM-Profile"
+  role = aws_iam_role.ec2_ssm_role.name
+}
+
 # Security group for web servers
 resource "aws_security_group" "web_sg" {
   name        = "web-security-group"
@@ -27,19 +61,19 @@ resource "aws_security_group" "web_sg" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   ingress {
-    description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]
+    description     = "HTTPS from ALB"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   ingress {
@@ -70,13 +104,16 @@ resource "aws_instance" "web_server_1" {
   subnet_id     = aws_subnet.private_1.id
   
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
-              yum install -y httpd
+              yum install -y httpd amazon-ssm-agent
               systemctl start httpd
               systemctl enable httpd
+              systemctl start amazon-ssm-agent
+              systemctl enable amazon-ssm-agent
               echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /var/www/html/index.html
               echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
               echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
@@ -96,13 +133,16 @@ resource "aws_instance" "web_server_2" {
   subnet_id     = aws_subnet.private_2.id
   
   vpc_security_group_ids = [aws_security_group.web_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
   user_data = base64encode(<<-EOF
               #!/bin/bash
               yum update -y
-              yum install -y httpd
+              yum install -y httpd amazon-ssm-agent
               systemctl start httpd
               systemctl enable httpd
+              systemctl start amazon-ssm-agent
+              systemctl enable amazon-ssm-agent
               echo "<h1>Web Server 2 - Private Subnet 2</h1>" > /var/www/html/index.html
               echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
               echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
