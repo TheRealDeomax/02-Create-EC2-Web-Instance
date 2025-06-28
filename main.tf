@@ -102,7 +102,7 @@ resource "aws_instance" "web_server_1" {
   instance_type = var.instance_type
   key_name      = var.key_pair_name
   subnet_id     = aws_subnet.private_1.id
-  
+
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
@@ -114,9 +114,14 @@ resource "aws_instance" "web_server_1" {
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
-              echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /var/www/html/index.html
-              echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
-              echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
+              sleep 30  # Wait for services to start             
+              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+              INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+              AVAILABILITY_ZONE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone)
+              echo "<h1>Web Server 1 - Private Subnet 1</h1>" > /index.html
+              echo "<p>Instance ID: $INSTANCE_ID</p>" >> /index.html
+              echo "<p>Availability Zone: $AVAILABILITY_ZONE</p>" >> /index.html
+              mv ./index.html /var/www/html/index.html
               EOF
   )
 
@@ -131,7 +136,7 @@ resource "aws_instance" "web_server_2" {
   instance_type = var.instance_type
   key_name      = var.key_pair_name
   subnet_id     = aws_subnet.private_2.id
-  
+
   vpc_security_group_ids = [aws_security_group.web_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_ssm_profile.name
 
@@ -143,6 +148,13 @@ resource "aws_instance" "web_server_2" {
               systemctl enable httpd
               systemctl start amazon-ssm-agent
               systemctl enable amazon-ssm-agent
+              
+              # Wait for metadata service to be available
+              while ! curl -s http://169.254.169.254/latest/meta-data/ > /dev/null; do
+                echo "Waiting for metadata service..."
+                sleep 2
+              done
+
               echo "<h1>Web Server 2 - Private Subnet 2</h1>" > /var/www/html/index.html
               echo "<p>Instance ID: $(curl -s http://169.254.169.254/latest/meta-data/instance-id)</p>" >> /var/www/html/index.html
               echo "<p>Availability Zone: $(curl -s http://169.254.169.254/latest/meta-data/placement/availability-zone)</p>" >> /var/www/html/index.html
