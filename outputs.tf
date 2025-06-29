@@ -92,3 +92,34 @@ output "cloudwatch_log_groups" {
     webserver2_error  = aws_cloudwatch_log_group.webserver2_error_logs.name
   }
 }
+
+# Image Builder Outputs
+output "imagebuilder_pipeline_arn" {
+  description = "Image Builder pipeline ARN"
+  value       = aws_imagebuilder_image_pipeline.webserver_pipeline.arn
+}
+
+output "imagebuilder_recipe_arn" {
+  description = "Image Builder recipe ARN"
+  value       = aws_imagebuilder_image_recipe.webserver_recipe.arn
+}
+
+output "imagebuilder_component_arn" {
+  description = "Custom Image Builder component ARN"
+  value       = aws_imagebuilder_component.webserver_component.arn
+}
+
+output "imagebuilder_logs_bucket" {
+  description = "S3 bucket for Image Builder logs"
+  value       = aws_s3_bucket.imagebuilder_logs.bucket
+}
+
+output "minimal_imagebuilder_component_arn" {
+  description = "Minimal Image Builder component ARN"
+  value       = aws_imagebuilder_component.minimal_webserver_component.arn
+}
+
+output "minimal_imagebuilder_recipe_arn" {
+  description = "Minimal Image Builder recipe ARN"
+  value       = aws_imagebuilder_image_recipe.minimal_webserver_recipe.arn
+}

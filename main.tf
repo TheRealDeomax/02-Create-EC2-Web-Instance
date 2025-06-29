@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.1"
+    }
   }
 }
 
@@ -151,8 +155,8 @@ resource "aws_instance" "web_server_1" {
 
   # Configure metadata service
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"  # Enforce IMDSv2
+    http_endpoint               = "enabled"
+    http_tokens                 = "required" # Enforce IMDSv2
     http_put_response_hop_limit = 1
   }
 
@@ -300,8 +304,8 @@ resource "aws_instance" "web_server_2" {
 
   # Configure metadata service
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"  # Enforce IMDSv2
+    http_endpoint               = "enabled"
+    http_tokens                 = "required" # Enforce IMDSv2
     http_put_response_hop_limit = 1
   }
 

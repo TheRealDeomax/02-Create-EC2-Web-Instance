@@ -1,0 +1,39 @@
+"description": "Minimal Apache installation and configuration"
+"phases":
+- "name": "build"
+  "steps":
+  - "action": "ExecuteBash"
+    "inputs":
+      "commands":
+      - "#!/bin/bash"
+      - "set -euo pipefail"
+      - "echo 'Installing Apache...'"
+      - "yum update -y"
+      - "yum install -y httpd"
+      - "systemctl enable httpd"
+      - "echo 'Apache installation completed'"
+    "name": "InstallApache"
+  - "action": "ExecuteBash"
+    "inputs":
+      "commands":
+      - "#!/bin/bash"
+      - "set -euo pipefail"
+      - "echo 'Creating web content...'"
+      - "echo '<h1>Image Builder Success!</h1>' > /var/www/html/index.html"
+      - "echo '<p>Built with AWS EC2 Image Builder</p>' >> /var/www/html/index.html"
+      - "echo '<p>Build Date: '$(date)'</p>' >> /var/www/html/index.html"
+      - "chown apache:apache /var/www/html/index.html"
+      - "echo 'Web content created'"
+    "name": "CreateWebContent"
+  - "action": "ExecuteBash"
+    "inputs":
+      "commands":
+      - "#!/bin/bash"
+      - "set -euo pipefail"
+      - "echo 'Validating installation...'"
+      - "httpd -v"
+      - "systemctl is-enabled httpd"
+      - "ls -la /var/www/html/index.html"
+      - "echo 'Validation completed successfully'"
+    "name": "ValidateInstallation"
+"schemaVersion": "1.0"

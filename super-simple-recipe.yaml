@@ -1,0 +1,10 @@
+"description": "Just install Apache"
+"phases":
+- "name": "build"
+  "steps":
+  - "action": "ExecuteBash"
+    "inputs":
+      "commands":
+      - "yum install -y httpd"
+    "name": "InstallApache"
+"schemaVersion": "1.0"
